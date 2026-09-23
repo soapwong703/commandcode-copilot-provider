@@ -12,163 +12,180 @@
  * OpenAI-compatible `reasoning_effort` field for models that advertise
  * reasoning capability.
  */
-export type ReasoningEffort = 'low' | 'medium' | 'high';
+export type ReasoningEffort = "low" | "medium" | "high";
 
-export type ThinkingEffort = 'none' | ReasoningEffort;
+export type ThinkingEffort = "none" | ReasoningEffort;
 
-export type ChatRole = 'system' | 'user' | 'assistant' | 'tool';
+export type ChatRole = "system" | "user" | "assistant" | "tool";
 
 export interface ChatMessage {
-	role: ChatRole;
-	/**
-	 * Text content of the message. For user messages with image input this is
-	 * a multimodal content array per the OpenAI chat-completions spec
-	 * (`[{ type: 'text' }, { type: 'image_url' }, ...]`).
-	 */
-	content: string | ChatMessagePart[];
-	tool_call_id?: string;
-	tool_calls?: ChatToolCall[];
-	reasoning_content?: string;
+  role: ChatRole;
+  /**
+   * Text content of the message. For user messages with image input this is
+   * a multimodal content array per the OpenAI chat-completions spec
+   * (`[{ type: 'text' }, { type: 'image_url' }, ...]`).
+   */
+  content: string | ChatMessagePart[];
+  tool_call_id?: string;
+  tool_calls?: ChatToolCall[];
+  reasoning_content?: string;
 }
 
 export interface ChatMessagePart {
-	type: 'text' | 'image_url';
-	text?: string;
-	image_url?: { url: string; detail?: 'auto' | 'low' | 'high' };
+  type: "text" | "image_url";
+  text?: string;
+  image_url?: { url: string; detail?: "auto" | "low" | "high" };
 }
 
 export interface ChatToolCall {
-	id: string;
-	type: 'function';
-	function: {
-		name: string;
-		arguments: string;
-	};
+  id: string;
+  type: "function";
+  function: {
+    name: string;
+    arguments: string;
+  };
 }
 
 export interface ChatTool {
-	type: 'function';
-	function: {
-		name: string;
-		description?: string;
-		parameters?: Record<string, unknown>;
-	};
+  type: "function";
+  function: {
+    name: string;
+    description?: string;
+    parameters?: Record<string, unknown>;
+  };
 }
 
 export interface ChatUsage {
-	prompt_tokens: number;
-	completion_tokens: number;
-	total_tokens: number;
-	prompt_cache_hit_tokens?: number;
-	prompt_cache_miss_tokens?: number;
+  prompt_tokens: number;
+  completion_tokens: number;
+  total_tokens: number;
+  prompt_cache_hit_tokens?: number;
+  prompt_cache_miss_tokens?: number;
 }
 
 export interface ChatRequest {
-	model: string;
-	messages: ChatMessage[];
-	stream: boolean;
-	temperature?: number;
-	top_p?: number;
-	max_tokens?: number;
-	tools?: ChatTool[];
-	tool_choice?: 'none' | 'auto' | 'required';
-	/** Provider-specific reasoning knobs (only attached when thinking is enabled). */
-	reasoning_effort?: ReasoningEffort;
-	stream_options?: {
-		include_usage: boolean;
-	};
+  model: string;
+  messages: ChatMessage[];
+  stream: boolean;
+  temperature?: number;
+  top_p?: number;
+  max_tokens?: number;
+  tools?: ChatTool[];
+  tool_choice?: "none" | "auto" | "required";
+  /** Provider-specific reasoning knobs (only attached when thinking is enabled). */
+  reasoning_effort?: ReasoningEffort;
+  stream_options?: {
+    include_usage: boolean;
+  };
 }
 
 export interface ChatStreamChunk {
-	id: string;
-	object: string;
-	created: number;
-	model: string;
-	choices: Array<{
-		index: number;
-		delta: {
-			role?: string;
-			content?: string;
-			reasoning_content?: string;
-			tool_calls?: Array<{
-				index: number;
-				id?: string;
-				type?: string;
-				function?: {
-					name?: string;
-					arguments?: string;
-				};
-			}>;
-		};
-		finish_reason: string | null;
-	}>;
-	usage?: ChatUsage;
+  id: string;
+  object: string;
+  created: number;
+  model: string;
+  choices: Array<{
+    index: number;
+    delta: {
+      role?: string;
+      content?: string;
+      reasoning_content?: string;
+      tool_calls?: Array<{
+        index: number;
+        id?: string;
+        type?: string;
+        function?: {
+          name?: string;
+          arguments?: string;
+        };
+      }>;
+    };
+    finish_reason: string | null;
+  }>;
+  usage?: ChatUsage;
 }
 
 // ---- Stream callbacks ----
 
 export interface StreamCallbacks {
-	onContent: (content: string) => void;
-	onThinking: (text: string) => void;
-	onToolCall: (toolCall: ChatToolCall) => void;
-	onError: (error: Error) => void;
-	onDone: () => void;
-	onUsage?: (usage: ChatUsage) => void;
+  onContent: (content: string) => void;
+  onThinking: (text: string) => void;
+  onToolCall: (toolCall: ChatToolCall) => void;
+  onError: (error: Error) => void;
+  onDone: () => void;
+  onUsage?: (usage: ChatUsage) => void;
 }
 
 // ---- Model registry ----
 
 export interface ThinkingCapability {
-	/** Effort values that appear in the model picker dropdown. */
-	supportedEfforts: readonly ReasoningEffort[];
-	defaultEffort: ReasoningEffort;
-	/** When true, `none` is offered alongside the configured efforts. */
-	canDisable: boolean;
+  /** Effort values that appear in the model picker dropdown. */
+  supportedEfforts: readonly ReasoningEffort[];
+  defaultEffort: ReasoningEffort;
+  /** When true, `none` is offered alongside the configured efforts. */
+  canDisable: boolean;
 }
 
 export interface ModelDefinition {
-	id: string;
-	name: string;
-	family: string;
-	version: string;
-	detail: string;
-	maxInputTokens: number;
-	maxOutputTokens: number;
-	capabilities: {
-		toolCalling: boolean | number;
-		imageInput: boolean;
-		thinking: ThinkingCapability | false;
-	};
-	/** Optional category used to group models in logs/UI. */
-	category?: string;
-	/**
-	 * True when the model was auto-discovered from the live catalog rather
-	 * than maintained in the static registry. Used to surface the upstream
-	 * model id in the picker's tooltip card.
-	 */
-	fetched?: boolean;
+  id: string;
+  name: string;
+  family: string;
+  version: string;
+  detail: string;
+  maxInputTokens: number;
+  maxOutputTokens: number;
+  capabilities: {
+    toolCalling: boolean | number;
+    imageInput: boolean;
+    thinking: ThinkingCapability | false;
+  };
+  pricing?: ModelPricing;
+  /**
+   * True when first-party model documentation has no matching capability row.
+   */
+  fetched?: boolean;
+}
+
+export interface ModelRates {
+  input: number;
+  output: number;
+  cacheRead?: number;
+  cacheWrite?: number;
+}
+
+export interface ModelPriceTier {
+  readonly label: string;
+  readonly context: string;
+  readonly rates: ModelRates;
+  readonly listRates?: ModelRates;
+}
+
+export interface ModelPricing {
+  readonly tiers: readonly ModelPriceTier[];
+  readonly peak?: {
+    readonly rates: ModelRates;
+    readonly windows: string;
+  };
+  readonly deal?: {
+    readonly discountPercent: number;
+    readonly endsAt?: string;
+    readonly rates: ModelRates;
+    readonly listRates?: ModelRates;
+  };
 }
 
 export interface ApiModelInfo {
-	id: string;
-	owned_by?: string;
-	/** Human-readable model name reported by the upstream `/models` response. */
-	name?: string;
-	/**
-	 * Total context window in tokens (input + output) as reported by
-	 * `GET /provider/v1/models`. Consumed by the live catalog sync to keep
-	 * the picker's reported context in step with the upstream registry.
-	 */
-	context_length?: number;
-	/**
-	 * Capability hints derived from the model registry. The upstream `/models`
-	 * response is not yet guaranteed to include this — we infer it when known.
-	 */
-	capabilities?: {
-		toolCalling?: boolean | number;
-		imageInput?: boolean;
-		thinking?: ThinkingCapability | false;
-	};
+  id: string;
+  owned_by?: string;
+  /** Human-readable model name reported by the upstream `/models` response. */
+  name?: string;
+  /**
+   * Total context window in tokens (input + output) as reported by
+   * `GET /provider/v1/models`. Consumed by the live catalog sync to keep
+   * the picker's reported context in step with the upstream registry.
+   */
+  context_length?: number;
+  supported_endpoints?: string[];
 }
 
 /**
@@ -177,5 +194,5 @@ export interface ApiModelInfo {
  * without changing the parser signature.
  */
 export interface ApiModelsResponse {
-	data?: ApiModelInfo[];
+  data?: ApiModelInfo[];
 }

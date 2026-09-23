@@ -203,7 +203,7 @@
         "lint": "oxlint",
         "format": "oxfmt --write src/",
         "format:check": "oxfmt --check src/",
-        "package": "vsce package -o dist/"
+        "package": "vsce package"
     },
     "devDependencies": {
         "@types/node": "^25.6.0",

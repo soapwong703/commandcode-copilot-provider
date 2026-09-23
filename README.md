@@ -9,7 +9,7 @@ Access Command Code models directly inside Copilot Chat — no new UI, no workfl
 - **Extend Copilot, don't replace it.** There's no extra sidebar or interface to figure out — just additional models appearing in the dropdown you already know.
 - **Full Copilot feature support.** Agent workflows, tool execution, custom instructions, MCP servers, and skills all continue to work seamlessly on Command Code models.
 - **Direct image understanding.** Models from Claude, GPT, Gemini, Kimi, Qwen, and Grok handle image inputs natively through Command Code — no intermediate proxy or re-encoding step.
-- **Bring your own key.** You control the billing, rate limits, and account. Credentials are persisted in the OS keychain, never written to config files or version control.
+- **Bring your own key.** You control the billing, rate limits, and account. Credentials are persisted in the OS keychain, never written to config files or version control. The live model list and public first-party metadata sync do not require a key.
 
 ## Capabilities
 
@@ -19,11 +19,12 @@ Every model available through Command Code's provider API appears right next to 
 
 ### Live model discovery
 
-The extension fetches the current model catalog from Command Code **once**, persists it locally, and only contacts the API again when you run **Command Code: Refresh Models** — there's no periodic background traffic.
+The extension synchronizes the public Command Code model API, model-capability docs, and pricing docs every 24 hours. Run **Command Code: Refresh Models** to force a sync at any time. The model catalog is available even before you configure an API key; a key is required only to send chat requests.
 
 - **Context stays accurate** — every model's reported context window mirrors the live `context_length` from the provider API.
-- **New models appear automatically** — when Command Code ships a model that isn't in the bundled registry yet, it shows up in the picker on its own. Auto-discovered entries are suffixed with **"(fetched)"** so you can tell them apart; limited-time free variants (model id ending in `-free` or `:free`) are marked **"(fetched, free)"**, and the tooltip card shows the full upstream model id so they can't be confused with the paid model of the same name.
-- **Conservative defaults** — until a model is verified and added to the registry in [`src/models.ts`](src/models.ts), auto-discovered entries assume vision support, reasoning/thinking enabled, tool calling on, and an estimated output budget of ⅛ of the context window (capped at 128K tokens).
+- **No stale models** — the API is authoritative for which models exist, so removed models disappear and new models appear automatically.
+- **Capabilities and pricing stay current** — first-party docs supply vision, reasoning, descriptions, per-million-token rates, context tiers, peak rates, and active deals.
+- **Pricing in the model picker** — each model reports its credit costs per 1M tokens, so VS Code's picker renders a rate table (with long-context tiers when they are actually surcharged) plus a price tag such as **Low cost**. Models with peak/off-peak billing show the active period and when it changes; discounted models show the active discount. Listed prices are reference rates.
 
 ### Per-model reasoning control
 
@@ -88,26 +89,26 @@ The extension surfaces the full Command Code provider lineup, organized by vendo
 
 | Model                              | Reasoning levels              | Vision | Ideal use case                                             |
 | ---------------------------------- | ----------------------------- | ------ | ---------------------------------------------------------- |
-| **Claude Sonnet 5**                | Off / Light / Standard / Deep | ✅     | Strong balance of speed and capability                     |
-| **Claude Opus 5**                  | Off / Light / Standard / Deep | ✅     | Highest-capability Anthropic model                         |
-| **GPT-5.6-Luna**                   | Off / Light / Standard / Deep | ✅     | Optimized for cost-sensitive workloads                     |
-| **GPT-6 Astra**                    | Off / Light / Standard / Deep | ✅     | Most capable OpenAI model for demanding reasoning & agents |
-| **Gemini 3.7 Flash**               | Off / Light / Standard / Deep | ✅     | Fast coding and agent-oriented tasks                       |
+| **Claude Sonnet 5**                | Off / Light / Standard / Deep | ✅      | Strong balance of speed and capability                     |
+| **Claude Opus 5**                  | Off / Light / Standard / Deep | ✅      | Highest-capability Anthropic model                         |
+| **GPT-5.6-Luna**                   | Off / Light / Standard / Deep | ✅      | Optimized for cost-sensitive workloads                     |
+| **GPT-6 Astra**                    | Off / Light / Standard / Deep | ✅      | Most capable OpenAI model for demanding reasoning & agents |
+| **Gemini 3.7 Flash**               | Off / Light / Standard / Deep | ✅      | Fast coding and agent-oriented tasks                       |
 | **DeepSeek V4 Pro**                | Off / Light / Standard / Deep | —      | Long-context reasoning via hybrid attention                |
-| **DeepSeek V4.1 Flash**            | Off / Light / Standard / Deep | ✅     | V4.1 hybrid-attention reasoning with vision                |
-| **DeepSeek V4 Flash Vision (exp)** | Off / Light / Standard / Deep | ✅     | Fast reasoning with vision input                           |
-| **Qwen 3.7 Plus**                  | Off / Light / Standard / Deep | ✅     | Cost-effective agentic development                         |
-| **Qwen 3.8 Flash**                 | Off / Light / Standard / Deep | ✅     | Fast low-cost agentic coding & reasoning                   |
-| **Qwen 3.8 Omni Flash**            | Off / Light / Standard / Deep | ✅     | Omni-modal understanding & multimedia agentic work         |
-| **MiMo V2.6 Pro**                  | Off / Light / Standard / Deep | ✅     | Flagship multimodal agentic coding (1.05M context)         |
-| **MiMo V2.6 Flash**                | Off / Light / Standard / Deep | ✅     | Efficient multimodal agentic coding (1.05M context)        |
-| **Kimi K3**                        | Off / Light / Standard / Deep | ✅     | 1M-token context for knowledge-heavy work                  |
-| **Grok 4.5**                       | Off / Light / Standard / Deep | ✅     | xAI's top model for development tasks                      |
-| **Grok 4.7**                       | Off / Light / Standard / Deep | ✅     | Coding and knowledge work, built for multi-hour tasks      |
+| **DeepSeek V4.1 Flash**            | Off / Light / Standard / Deep | ✅      | V4.1 hybrid-attention reasoning with vision                |
+| **DeepSeek V4 Flash Vision (exp)** | Off / Light / Standard / Deep | ✅      | Fast reasoning with vision input                           |
+| **Qwen 3.7 Plus**                  | Off / Light / Standard / Deep | ✅      | Cost-effective agentic development                         |
+| **Qwen 3.8 Flash**                 | Off / Light / Standard / Deep | ✅      | Fast low-cost agentic coding & reasoning                   |
+| **Qwen 3.8 Omni Flash**            | Off / Light / Standard / Deep | ✅      | Omni-modal understanding & multimedia agentic work         |
+| **MiMo V2.6 Pro**                  | Off / Light / Standard / Deep | ✅      | Flagship multimodal agentic coding (1.05M context)         |
+| **MiMo V2.6 Flash**                | Off / Light / Standard / Deep | ✅      | Efficient multimodal agentic coding (1.05M context)        |
+| **Kimi K3**                        | Off / Light / Standard / Deep | ✅      | 1M-token context for knowledge-heavy work                  |
+| **Grok 4.5**                       | Off / Light / Standard / Deep | ✅      | xAI's top model for development tasks                      |
+| **Grok 4.7**                       | Off / Light / Standard / Deep | ✅      | Coding and knowledge work, built for multi-hour tasks      |
 | **GLM-5.3**                        | Off / Light / Standard / Deep | —      | Frontier reasoning with 1M context                         |
 | **GLM-5.3 Flash**                  | Off / Light / Standard / Deep | —      | Fast, affordable GLM coding with 1M context                |
 
-73 models from 18 different providers are included — see the complete catalog in [`src/models.ts`](src/models.ts). Models Command Code adds after a release appear automatically in the picker, marked **(fetched)**.
+The current model catalog is fetched directly from Command Code and refreshed automatically every 24 hours. Models that arrive before their documentation row are marked **(unverified)** and use conservative capability defaults until the docs catch up.
 
 ## Extension settings
 

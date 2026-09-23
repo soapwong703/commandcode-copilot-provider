@@ -1,76 +1,92 @@
-import vscode from 'vscode';
-import { t } from '../i18n';
+import vscode from "vscode";
+import {
+  getMaxContextTokensOverride,
+  resolveModelDetailStyle,
+} from "../config";
+import { t } from "../i18n";
 import type {
-	ModelDefinition,
-	ReasoningEffort,
-	ThinkingCapability,
-	ThinkingEffort,
-} from '../types';
-import { getMaxContextTokensOverride, resolveModelDetailStyle } from '../config';
+  ModelDefinition,
+  ReasoningEffort,
+  ThinkingCapability,
+  ThinkingEffort,
+} from "../types";
+import {
+  toModelPricingInfo,
+  type ModelPricingInformation,
+} from "./pricingInfo";
 
 /**
  * Non-public Copilot Chat API surface.
  *
- * `isBYOK`, `isUserSelectable`, `statusIcon`, and `configurationSchema` are
- * not yet in `@types/vscode` — they are the same shape currently consumed
- * by GitHub Copilot Chat to render model-picker metadata and per-model
- * configuration controls. The fields are exposed here so the extension can
- * continue to work against the proposed API surface.
+ * `isBYOK`, `isUserSelectable`, `statusIcon`, `configurationSchema`, and the
+ * pricing metadata fields are not yet in `@types/vscode` — they are the same
+ * shape currently consumed by GitHub Copilot Chat to render model-picker
+ * metadata, pricing, and per-model configuration controls. The fields are
+ * exposed here so the extension can continue to work against the proposed API
+ * surface.
  */
-export type ModelConfigurationOptions = vscode.ProvideLanguageModelChatResponseOptions & {
-	readonly modelConfiguration?: Record<string, unknown>;
-	readonly configuration?: Record<string, unknown>;
-};
+export type ModelConfigurationOptions =
+  vscode.ProvideLanguageModelChatResponseOptions & {
+    readonly modelConfiguration?: Record<string, unknown>;
+    readonly configuration?: Record<string, unknown>;
+  };
 
-type ThinkingEffortConfigurationSchema = ReturnType<typeof buildThinkingEffortSchema>;
+type ThinkingEffortConfigurationSchema = ReturnType<
+  typeof buildThinkingEffortSchema
+>;
 
-export type ModelPickerChatInformation = vscode.LanguageModelChatInformation & {
-	readonly isUserSelectable: boolean;
-	readonly isBYOK: true;
-	readonly statusIcon?: vscode.ThemeIcon;
-	readonly configurationSchema?: ThinkingEffortConfigurationSchema;
-};
+export type ModelPickerChatInformation = vscode.LanguageModelChatInformation &
+  ModelPricingInformation & {
+    readonly isUserSelectable: boolean;
+    readonly isBYOK: true;
+    readonly statusIcon?: vscode.ThemeIcon;
+    readonly configurationSchema?: ThinkingEffortConfigurationSchema;
+  };
 
 export function toChatInfo(
-	m: ModelDefinition,
-	hasApiKey: boolean,
-	liveContextLength?: number,
+  m: ModelDefinition,
+  hasApiKey: boolean,
+  liveContextLength?: number,
 ): ModelPickerChatInformation {
-	const thinkingCapability = m.capabilities.thinking;
-	const contextOverride = getMaxContextTokensOverride();
+  const thinkingCapability = m.capabilities.thinking;
+  const contextOverride = getMaxContextTokensOverride();
 
-	// Precedence for the input window reported to Copilot:
-	//   1. explicit `maxContextTokens` setting,
-	//   2. live `context_length` from the provider API (total window minus
-	//      the output reserved for generation),
-	//   3. the static registry value as a fallback.
-	let maxInputTokens = m.maxInputTokens;
-	if (contextOverride > 0) {
-		maxInputTokens = contextOverride;
-	} else if (typeof liveContextLength === 'number' && liveContextLength > m.maxOutputTokens) {
-		maxInputTokens = liveContextLength - m.maxOutputTokens;
-	}
+  // Precedence for the input window reported to Copilot:
+  //   1. explicit `maxContextTokens` setting,
+  //   2. live `context_length` from the provider API (total window minus
+  //      the output reserved for generation),
+  //   3. the static registry value as a fallback.
+  let maxInputTokens = m.maxInputTokens;
+  if (contextOverride > 0) {
+    maxInputTokens = contextOverride;
+  } else if (
+    typeof liveContextLength === "number" &&
+    liveContextLength > m.maxOutputTokens
+  ) {
+    maxInputTokens = liveContextLength - m.maxOutputTokens;
+  }
 
-	return {
-		id: m.id,
-		name: m.name,
-		family: m.family,
-		version: m.version,
-		detail: hasApiKey ? formatModelDetail(m) : t('auth.apiKeyRequiredDetail'),
-		tooltip: hasApiKey ? formatModelTooltip(m) : t('auth.apiKeyRequiredDetail'),
-		statusIcon: hasApiKey ? undefined : new vscode.ThemeIcon('warning'),
-		maxInputTokens,
-		maxOutputTokens: m.maxOutputTokens,
-		isBYOK: true,
-		isUserSelectable: true,
-		capabilities: {
-			toolCalling: m.capabilities.toolCalling,
-			imageInput: m.capabilities.imageInput,
-		},
-		...(thinkingCapability
-			? { configurationSchema: buildThinkingEffortSchema(thinkingCapability) }
-			: {}),
-	};
+  return {
+    id: m.id,
+    name: m.name,
+    family: m.family,
+    version: m.version,
+    detail: hasApiKey ? formatModelDetail(m) : t("auth.apiKeyRequiredDetail"),
+    tooltip: hasApiKey ? formatModelTooltip(m) : t("auth.apiKeyRequiredDetail"),
+    statusIcon: hasApiKey ? undefined : new vscode.ThemeIcon("warning"),
+    maxInputTokens,
+    maxOutputTokens: m.maxOutputTokens,
+    isBYOK: true,
+    isUserSelectable: true,
+    capabilities: {
+      toolCalling: m.capabilities.toolCalling,
+      imageInput: m.capabilities.imageInput,
+    },
+    ...toModelPricingInfo(m.pricing),
+    ...(thinkingCapability
+      ? { configurationSchema: buildThinkingEffortSchema(thinkingCapability) }
+      : {}),
+  };
 }
 
 /**
@@ -86,22 +102,25 @@ export function toChatInfo(
  *   - `auto`    → `compact` on Linux, `full` elsewhere
  */
 function formatModelDetail(m: ModelDefinition): string {
-	const style = resolveModelDetailStyle();
-	if (style === 'hidden') {
-		return '';
-	}
-	if (style === 'full') {
-		return m.detail;
-	}
+  const style = resolveModelDetailStyle();
+  if (style === "hidden") {
+    return "";
+  }
+  if (style === "full") {
+    return m.detail || formatCompactModelDetail(m);
+  }
+  return formatCompactModelDetail(m);
+}
 
-	const parts: string[] = [];
-	if (m.capabilities.imageInput) {
-		parts.push(t('capability.vision'));
-	}
-	if (m.capabilities.thinking) {
-		parts.push(t('capability.thinking'));
-	}
-	return parts.join(' · ');
+function formatCompactModelDetail(m: ModelDefinition): string {
+  const parts: string[] = [];
+  if (m.capabilities.imageInput) {
+    parts.push(t("capability.vision"));
+  }
+  if (m.capabilities.thinking) {
+    parts.push(t("capability.thinking"));
+  }
+  return parts.join(" · ");
 }
 
 /**
@@ -109,74 +128,77 @@ function formatModelDetail(m: ModelDefinition): string {
  *
  * Besides the marketing `detail` sentence it lists the model's capabilities
  * (Vision · Reasoning) so users can see at a glance what the model supports.
- * For models auto-discovered from the live catalog the upstream model id is
- * appended — fetched entries can share a display name with a maintained one
- * (e.g. `MiniMaxAI/MiniMax-M3` vs `minimax/minimax-m3-free`), so the id
- * makes them distinguishable.
+ * For models not matched to the current first-party docs row, the upstream
+ * id is appended so unverified capabilities are distinguishable.
+ *
+ * Pricing is deliberately not repeated here: it is delivered through the
+ * picker's pricing metadata, which renders a proper rate table plus a
+ * price-category tag and the info banner.
  */
 function formatModelTooltip(m: ModelDefinition): string {
-	const lines: string[] = [m.detail];
+  const lines: string[] = [m.detail];
 
-	const capabilities: string[] = [];
-	if (m.capabilities.imageInput) {
-		capabilities.push(t('capability.vision'));
-	}
-	if (m.capabilities.thinking) {
-		capabilities.push(t('capability.reasoning'));
-	}
-	if (capabilities.length > 0) {
-		lines.push(`${t('tooltip.capabilities')}: ${capabilities.join(' · ')}`);
-	}
+  const capabilities: string[] = [];
+  if (m.capabilities.imageInput) {
+    capabilities.push(t("capability.vision"));
+  }
+  if (m.capabilities.thinking) {
+    capabilities.push(t("capability.reasoning"));
+  }
+  if (capabilities.length > 0) {
+    lines.push(`${t("tooltip.capabilities")}: ${capabilities.join(" · ")}`);
+  }
 
-	if (m.fetched) {
-		lines.push(`${t('tooltip.modelId')}: ${m.id}`);
-	}
+  if (m.fetched) {
+    lines.push(`${t("tooltip.modelId")}: ${m.id}`);
+  }
 
-	return lines.join('\n\n');
+  return lines.join("\n\n");
 }
 
 export function getConfiguredThinkingEffort(
-	options: ModelConfigurationOptions,
-	thinkingCapability: ThinkingCapability,
+  options: ModelConfigurationOptions,
+  thinkingCapability: ThinkingCapability,
 ): ThinkingEffort {
-	const configuredEffort =
-		options.modelConfiguration?.reasoningEffort ?? options.configuration?.reasoningEffort;
+  const configuredEffort =
+    options.modelConfiguration?.reasoningEffort ??
+    options.configuration?.reasoningEffort;
 
-	if (configuredEffort === 'none' && thinkingCapability.canDisable) {
-		return 'none';
-	}
+  if (configuredEffort === "none" && thinkingCapability.canDisable) {
+    return "none";
+  }
 
-	if (isSupportedReasoningEffort(configuredEffort, thinkingCapability)) {
-		return configuredEffort;
-	}
+  if (isSupportedReasoningEffort(configuredEffort, thinkingCapability)) {
+    return configuredEffort;
+  }
 
-	return thinkingCapability.defaultEffort;
+  return thinkingCapability.defaultEffort;
 }
 
 function buildThinkingEffortSchema(thinkingCapability: ThinkingCapability) {
-	const efforts: ThinkingEffort[] = [
-		...(thinkingCapability.canDisable ? (['none'] as const) : []),
-		...thinkingCapability.supportedEfforts,
-	];
+  const efforts: ThinkingEffort[] = [
+    ...(thinkingCapability.canDisable ? (["none"] as const) : []),
+    ...thinkingCapability.supportedEfforts,
+  ];
 
-	return {
-		properties: {
-			reasoningEffort: {
-				type: 'string',
-				title: t('status.thinking'),
-				enum: efforts,
-				enumItemLabels: efforts.map((effort) => t(`thinking.${effort}`)),
-				enumDescriptions: efforts.map((effort) => t(`thinking.${effort}.desc`)),
-				default: thinkingCapability.defaultEffort,
-				group: 'navigation',
-			},
-		},
-	} as const;
+  return {
+    properties: {
+      reasoningEffort: {
+        type: "string",
+        title: t("status.thinking"),
+        enum: efforts,
+        enumItemLabels: efforts.map((effort) => t(`thinking.${effort}`)),
+        enumDescriptions: efforts.map((effort) => t(`thinking.${effort}.desc`)),
+        default: thinkingCapability.defaultEffort,
+        group: "navigation",
+      },
+    },
+  } as const;
 }
 
 function isSupportedReasoningEffort(
-	value: unknown,
-	thinkingCapability: ThinkingCapability,
+  value: unknown,
+  thinkingCapability: ThinkingCapability,
 ): value is ReasoningEffort {
-	return thinkingCapability.supportedEfforts.some((effort) => effort === value);
+  return thinkingCapability.supportedEfforts.some((effort) => effort === value);
 }

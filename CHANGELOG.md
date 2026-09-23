@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+### Features
+
+- Replace the bundled model list with the public Command Code catalog, synced with first-party model capability and pricing docs every 24 hours. The existing **Command Code: Refresh Models** command forces a sync.
+- Show reference credits per 1M tokens in the model picker, including long-context tiers when they carry a surcharge, a price-category tag, the active peak/off-peak billing period with its next transition, and active discounts.
+- Model discovery and documentation sync no longer require an API key; a key is still required to make chat requests.
+- Remove the bundled model registry so retired provider models no longer remain in the picker.
+
 ## 0.3.0 (2026-09-22)
 
 ### Features
